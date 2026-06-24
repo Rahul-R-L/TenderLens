@@ -62,41 +62,55 @@ st.markdown(
     """
     <style>
 
-    .kpi-card {
+   div[data-testid="stMetric"] {
 
-        background: linear-gradient(
-            135deg,
-            #1E63D5,
-            #0F2B5B
-        );
+    background: #f5f7fb;
+
+    padding: 15px;
+
+    border-radius: 12px;
+
+    border-left: 5px solid #1E63D5;
+
+    box-shadow:
+        0 4px 10px rgba(0,0,0,0.08);
+}
+    
+    .department-card {
+
+        background: #ffffff;
 
         border-radius: 12px;
 
-        padding: 20px;
+        padding: 18px;
 
         text-align: center;
 
-        color: white;
-
-        min-height: 130px;
+        border-left: 5px solid #1E63D5;
 
         box-shadow:
             0 4px 10px
-            rgba(0,0,0,0.15);
+            rgba(0,0,0,0.08);
+
+        min-height: 110px;
     }
 
-    .kpi-title {
+    .department-name {
 
-        font-size: 14px;
+        font-size: 15px;
 
-        opacity: 0.9;
+        font-weight: 600;
+
+        color: #1f2937;
     }
 
-    .kpi-value {
+    .department-count {
 
-        font-size: 32px;
+        font-size: 28px;
 
-        font-weight: bold;
+        font-weight: 700;
+
+        color: #1E63D5;
 
         margin-top: 10px;
     }
@@ -136,120 +150,7 @@ if st.session_state.get(
     del st.session_state[
         "security_warning"
     ]
-# =====================================================
-# DATABASE FUNCTIONS
-# =====================================================
 
-def get_dashboard_stats():
-
-    conn = get_connection()
-
-    stats = {}
-
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM tenders
-        WHERE tender_active = 1
-        """
-    )
-
-    stats["active_tenders"] = (
-        cursor.fetchone()[0]
-    )
-
-    cursor.execute(
-        """
-        SELECT
-            organisation_name,
-            COUNT(*) as cnt
-        FROM tenders
-        WHERE tender_active = 1
-        GROUP BY organisation_name
-        ORDER BY cnt DESC
-        """
-    )
-
-    stats["departments"] = (
-        cursor.fetchall()
-    )
-
-    conn.close()
-
-    return stats
-
-
-def get_departments():
-
-    conn = get_connection()
-
-    df = pd.read_sql_query(
-        """
-        SELECT DISTINCT
-            organisation_name
-        FROM tenders
-        WHERE tender_active = 1
-        ORDER BY organisation_name
-        """,
-        conn
-    )
-
-    conn.close()
-
-    return df["organisation_name"].tolist()
-
-
-def get_tenders(
-    department=None
-):
-
-    conn = get_connection()
-
-    query = """
-    SELECT
-
-        tender_id,
-        title,
-        organisation_name,
-        location,
-        bid_submission_end_date,
-        form_of_contract
-
-    FROM tenders
-
-    WHERE tender_active = 1
-    """
-
-    params = []
-
-    if (
-        department
-        and department != "All"
-    ):
-        query += """
-        AND organisation_name = ?
-        """
-
-        params.append(
-            department
-        )
-
-    query += """
-    ORDER BY
-        bid_submission_end_date ASC
-    """
-
-    df = pd.read_sql_query(
-        query,
-        conn,
-        params=params
-    )
-
-    conn.close()
-
-    return df
 
 
 # =====================================================
@@ -268,120 +169,106 @@ st.caption(
 # =====================================================
 # KPI CARDS
 # =====================================================
-
-active_tenders = (
-    get_active_tender_count()
+st.subheader(
+    "📈 Market Overview"
 )
 
-closing_today = (
-    get_closing_today_count()
-)
+active_tenders = get_active_tender_count()
 
-closing_week = (
-    get_closing_this_week_count()
-)
+closing_today = get_closing_today_count()
 
-high_value = (
-    get_high_value_tender_count()
-)
+closing_week = get_closing_this_week_count()
 
-c1, c2, c3, c4 = (
-    st.columns(4)
-)
+high_value = get_high_value_tender_count()
+
+c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-title">
-                Active Tenders
-            </div>
-
-            <div class="kpi-value">
-                {active_tenders:,}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.metric(
+        "Active Tenders",
+        f"{active_tenders:,}"
     )
 
 with c2:
-
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-title">
-                Closing Today
-            </div>
-
-            <div class="kpi-value">
-                {closing_today:,}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.metric(
+        "Closing Today",
+        f"{closing_today:,}"
     )
 
 with c3:
-
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-title">
-                Closing This Week
-            </div>
-
-            <div class="kpi-value">
-                {closing_week:,}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.metric(
+        "Closing This Week",
+        f"{closing_week:,}"
     )
 
 with c4:
-
-    st.markdown(
-        f"""
-        <div class="kpi-card">
-            <div class="kpi-title">
-                ₹1 Cr+ Tenders
-            </div>
-
-            <div class="kpi-value">
-                {high_value:,}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.metric(
+        "₹1 Cr+ Tenders",
+        f"{high_value:,}"
     )
-
 st.divider()
 
+
 st.subheader(
-    "Top Departments"
+    "🏛️ Top Departments"
 )
+
 
 top_departments = (
     get_top_departments()
 )
 
-cols = st.columns(4)
+cols = st.columns(
+    min(
+        len(top_departments),
+        4
+    )
+)
 
 for i, row in enumerate(
-    top_departments.itertuples()
+    top_departments.head(4).itertuples()
 ):
 
     with cols[i]:
 
+        dept_name = row.organisation_name
+
+        if dept_name == "Local Self Government Department":
+
+            display_name = "LSGD"
+
+        elif dept_name == "Forest Department":
+
+            display_name = "Forest"
+
+        elif dept_name == "Irrigation Department":
+
+            display_name = "Irrigation"
+
+        elif dept_name == "Public Works Department":
+
+            display_name = "PWD"
+
+        elif dept_name == "Kerala State Industrial Enterprises Ltd":
+
+            display_name = "KSIE"
+
+        elif dept_name == "Kerala Water Authority":
+
+            display_name = "KWA"
+
+        else:
+
+            display_name = dept_name
+
+        st.metric(
+            display_name,
+            f"{row.tender_count:,}"
+        )
+
         if st.button(
 
-            f"""
-            {row.organisation_name}
-
-            ({row.tender_count})
-            """,
+            "View Tenders",
 
             key=f"dept_{i}",
 
@@ -390,10 +277,25 @@ for i, row in enumerate(
         ):
 
             st.session_state[
-                "department_filter"
-            ] = (
-                row.organisation_name
-            )
+                "search_filters"
+            ] = {
+
+                "keyword": "",
+
+                "organisation_paths": [
+                    dept_name
+                ],
+
+                "location": "",
+
+                "min_value": 0,
+
+                "max_value": 0,
+
+                "closing_from": None,
+
+                "closing_to": None
+            }
 
             st.switch_page(
                 "pages/6_Search_Results.py"
@@ -402,7 +304,11 @@ for i, row in enumerate(
 st.divider()
 
 st.subheader(
-    "₹1 Crore+ Opportunities"
+    "💰 ₹1 Crore+ Opportunities"
+)
+
+st.info(
+    f"{high_value:,} active tenders above ₹1 Crore currently available."
 )
 
 high_value_df = (
@@ -411,116 +317,39 @@ high_value_df = (
 
 if not high_value_df.empty:
 
+    display_df = high_value_df.copy()
+
+    display_df = display_df[
+        [
+            "title",
+            "organisation_name",
+            "tender_value",
+            "bid_submission_end_date"
+        ]
+    ]
+
+    display_df.columns = [
+
+        "Title",
+        "Organisation",
+        "Tender Value  (₹)",
+        "Closing Date"
+
+    ]
+
     st.dataframe(
-        high_value_df,
+
+        display_df,
+
         use_container_width=True,
-        hide_index=True
+
+        hide_index=True,
+
+        height=350
     )
-# =====================================================
-# FILTERS
-# =====================================================
 
-department_list = (
-    get_departments()
-)
+    # =====================================================
+    # QUICK ACCESS
+    # =====================================================
 
-department_list.insert(
-    0,
-    "All"
-)
 
-selected_department = (
-    st.selectbox(
-        "Department",
-        department_list
-    )
-)
-
-# =====================================================
-# QUICK ACCESS
-# =====================================================
-
-st.subheader(
-    "Quick Access"
-)
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-with c1:
-
-    if st.button(
-        "All Active Tenders",
-        use_container_width=True
-    ):
-
-        st.session_state[
-            "department_filter"
-        ] = "All"
-
-        st.switch_page(
-            "pages/5_Search.py"
-        )
-
-with c2:
-
-    if st.button(
-        "PWD",
-        use_container_width=True
-    ):
-
-        st.session_state[
-            "department_filter"
-        ] = "PWD"
-
-        st.switch_page(
-            "pages/5_Search.py"
-        )
-
-with c3:
-
-    if st.button(
-        "LSGD",
-        use_container_width=True
-    ):
-
-        st.session_state[
-            "department_filter"
-        ] = (
-            "Local Self Government Department"
-        )
-
-        st.switch_page(
-            "pages/5_Search.py"
-        )
-
-with c4:
-
-    if st.button(
-        "Forest",
-        use_container_width=True
-    ):
-
-        st.session_state[
-            "department_filter"
-        ] = "Forest Department"
-
-        st.switch_page(
-            "pages/5_Search.py"
-        )
-
-with c5:
-
-    if st.button(
-        "KSIE",
-        use_container_width=True
-    ):
-
-        st.session_state[
-            "department_filter"
-        ] = (
-            "Kerala State Industrial Enterprises Ltd"
-        )
-
-        st.switch_page(
-            "pages/5_Search.py"
-        )
