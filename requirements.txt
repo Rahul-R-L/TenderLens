@@ -4,7 +4,5 @@ numpy
 Pillow
 reportlab
 bcrypt
-secrets
+python-dotenv
 resend
-textwrap
-html
