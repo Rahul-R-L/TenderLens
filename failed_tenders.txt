@@ -1,0 +1,600 @@
+
+============================================================
+PAGE: 2
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 7
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 9
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 10
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 14
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 15
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 16
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 17
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 18
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 19
+REASON: Stale session after retries
+
+============================================================
+PAGE: 21
+TENDER: 20
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 2
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 3
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 4
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 5
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 6
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 7
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 9
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 10
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 14
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 15
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 16
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 17
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 18
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 19
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 20
+REASON: Stale session after retries
+
+============================================================
+PAGE: 4
+TENDER: 15
+REASON: Stale session after retries
+
+============================================================
+PAGE: 4
+TENDER: 16
+REASON: Stale session after retries
+
+============================================================
+PAGE: 4
+TENDER: 17
+REASON: Stale session after retries
+
+============================================================
+PAGE: 4
+TENDER: 18
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 1
+REASON: 'NoneType' object has no attribute 'get'
+
+============================================================
+PAGE: 1
+TENDER: 2
+REASON: 'NoneType' object has no attribute 'get'
+
+============================================================
+PAGE: 1
+TENDER: 3
+REASON: 'NoneType' object has no attribute 'get'
+
+============================================================
+PAGE: 1
+TENDER: 5
+REASON: Stale session after retries
+
+============================================================
+PAGE: 14
+TENDER: 20
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 18
+REASON: Stale session after retries
+
+============================================================
+PAGE: 24
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 26
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 26
+TENDER: 9
+REASON: Stale session after retries
+
+============================================================
+PAGE: 26
+TENDER: 10
+REASON: Stale session after retries
+
+============================================================
+PAGE: 26
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 26
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 26
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 26
+TENDER: 14
+REASON: Stale session after retries
+
+============================================================
+PAGE: 6
+TENDER: 4
+REASON: Stale session after retries
+
+============================================================
+PAGE: 6
+TENDER: 5
+REASON: Stale session after retries
+
+============================================================
+PAGE: 6
+TENDER: 6
+REASON: Stale session after retries
+
+============================================================
+PAGE: 6
+TENDER: 7
+REASON: Stale session after retries
+
+============================================================
+PAGE: 6
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 6
+TENDER: 9
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 14
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 15
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 16
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 17
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 18
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 19
+REASON: Stale session after retries
+
+============================================================
+PAGE: 23
+TENDER: 20
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 6
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 7
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 9
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 10
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 1
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 3
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 15
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 16
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 17
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 18
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 19
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 20
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 5
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 2
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 3
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 4
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 5
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 6
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 7
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 9
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 10
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 14
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 15
+REASON: Stale session after retries
+
+============================================================
+PAGE: 9
+TENDER: 16
+REASON: Stale session after retries
+
+============================================================
+PAGE: 33
+TENDER: 17
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 3
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 4
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 5
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 6
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 7
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 8
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 9
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 10
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 11
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 12
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 13
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 14
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 15
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 16
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 17
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 18
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 19
+REASON: Stale session after retries
+
+============================================================
+PAGE: 34
+TENDER: 20
+REASON: Stale session after retries
