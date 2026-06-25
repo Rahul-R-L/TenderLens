@@ -91,14 +91,12 @@ def send_verification_email(
 
 ):
 
+
     verify_link = (
-
         f"{APP_URL}"
-        f"/verify"
+        f"/Verify_Email"
         f"?token={token}"
-
     )
-
     html = f"""
     <h2>
         Welcome to {APP_NAME}
