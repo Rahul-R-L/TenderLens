@@ -1796,6 +1796,7 @@ def get_active_tender_count():
         SELECT COUNT(*)
         FROM tenders
         WHERE tender_active = 1
+        AND bid_end_iso >= datetime('now')
         """
     )
 
