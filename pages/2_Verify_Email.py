@@ -10,7 +10,7 @@ from db import (
 # =====================================================
 
 st.set_page_config(
-    page_title="TenderLens",
+    page_title="Verify - TenderLens",
     page_icon="assets/TL_logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
