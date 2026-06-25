@@ -1483,6 +1483,7 @@ def search_tenders_v2(
     FROM tenders
 
     WHERE tender_active = 1
+    AND bid_end_iso >= datetime('now')
     """
 
     params = []
@@ -2424,6 +2425,36 @@ def get_high_value_tenders(limit=10):
     conn.close()
 
     return df
+
+# =====================================================
+# UPDATE ACTIVE TENDER STATUS
+# =====================================================
+
+def update_tender_status():
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Mark expired tenders inactive
+    cursor.execute("""
+        UPDATE tenders
+        SET tender_active = 0
+        WHERE
+            bid_end_iso IS NOT NULL
+            AND datetime(bid_end_iso) < datetime('now')
+    """)
+
+    # Mark future tenders active
+    cursor.execute("""
+        UPDATE tenders
+        SET tender_active = 1
+        WHERE
+            bid_end_iso IS NOT NULL
+            AND datetime(bid_end_iso) >= datetime('now')
+    """)
+
+    conn.commit()
+    conn.close()
 # =====================================================
 # MAIN
 # =====================================================
