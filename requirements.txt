@@ -6,3 +6,4 @@ reportlab
 bcrypt
 python-dotenv
 resend
+psycopg2-binary
