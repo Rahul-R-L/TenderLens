@@ -1,8 +1,8 @@
 import streamlit as st
 
-from db import (
-    create_user,
-    email_exists
+from database.db_postgres import (
+    email_exists,
+    create_user
 )
 
 from auth import (
