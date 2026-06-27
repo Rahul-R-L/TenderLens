@@ -13,5 +13,6 @@ def get_connection():
         dbname=os.getenv("SUPABASE_DATABASE"),
         user=os.getenv("SUPABASE_USER"),
         password=os.getenv("SUPABASE_PASSWORD"),
+        sslmode="require",
         cursor_factory=RealDictCursor,
     )
