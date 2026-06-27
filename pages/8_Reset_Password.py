@@ -1,6 +1,6 @@
 import streamlit as st
 
-from db import (
+from database.db_postgres import (
     get_user_by_email,
     create_password_reset_code,
     verify_reset_code,

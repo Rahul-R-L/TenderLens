@@ -1,571 +1,21 @@
-import sqlite3
 import pandas as pd
-from datetime import (datetime, timedelta)
 import secrets
+import psycopg2
+from datetime import (datetime, timedelta)
+from psycopg2.extras import RealDictCursor
+from database.connection import get_connection
 
-DB_NAME = (
-    "tenders.db"
-)
 
 
 # =====================================================
 # CONNECTION
 # =====================================================
 
-def get_connection():
-
-    conn = sqlite3.connect(
-        DB_NAME
-    )
-
-    conn.row_factory = (
-        sqlite3.Row
-    )
-
-    return conn
-
 
 # =====================================================
 # INIT DATABASE
 # =====================================================
 
-def init_db():
-
-    conn = (
-        get_connection()
-    )
-
-    cursor = (
-        conn.cursor()
-    )
-
-    # =================================================
-    # TENDERS
-    # =================================================
-
-    cursor.execute(
-    
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        tenders (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            tender_id TEXT
-            UNIQUE,
-
-            title TEXT,
-
-            organisation_name TEXT,
-
-            organisation_chain_raw TEXT,
-
-            location TEXT,
-
-            tender_value TEXT,
-            
-            tender_value_num REAL,
-
-            form_of_contract TEXT,
-
-            bid_submission_end_date TEXT,
-            
-            bid_end_iso TEXT,
-
-            tender_active INTEGER
-            DEFAULT 1,
-
-            tender_inviting_authority TEXT,
-
-            authority_address TEXT,
-
-            work_description TEXT,
-
-            tender_url TEXT,
-
-            needs_review INTEGER
-            DEFAULT 0,
-
-            scraped_at TEXT,
-
-            updated_at TEXT
-        )
-        """
-    )
-
-    # =================================================
-    # BOQ ITEMS
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        boq_items (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            tender_id TEXT,
-
-            item_no TEXT,
-
-            description TEXT,
-
-            quantity REAL,
-
-            unit TEXT,
-
-            estimated_rate REAL,
-
-            amount REAL,
-
-            FOREIGN KEY (
-                tender_id
-            )
-            REFERENCES tenders(
-                tender_id
-            )
-        )
-        """
-    )
-
-    # =================================================
-    # BOQ HEADINGS
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        boq_headings (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            tender_id TEXT,
-
-            heading_no TEXT,
-
-            heading_text TEXT,
-
-            FOREIGN KEY (
-                tender_id
-            )
-            REFERENCES tenders(
-                tender_id
-            )
-        )
-        """
-    )
-
-    # =================================================
-    # USERS
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        users (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            name TEXT
-            NOT NULL,
-
-            email TEXT
-            UNIQUE
-            NOT NULL,
-
-            mobile TEXT,
-            
-            company_name TEXT,
-
-            password_hash TEXT
-            NOT NULL,
-
-            is_verified INTEGER
-            DEFAULT 0,
-
-            is_active INTEGER
-            DEFAULT 1,
-
-            email_verified_at TEXT,
-
-            verification_token TEXT,
-
-            role TEXT
-            DEFAULT 'user',
-            
-            status TEXT 
-            DEFAULT 'active',
-
-            plan_type TEXT
-            DEFAULT 'early_adopter',
-
-            referral_source TEXT,
-
-            created_at TEXT,
-
-            last_login TEXT
-        )
-        """
-    )
-
-    # =================================================
-    # FEEDBACK
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        feedback (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            user_id INTEGER,
-
-            subject TEXT,
-
-            message TEXT,
-
-            status TEXT
-            DEFAULT 'Open',
-
-            created_at TEXT,
-
-            FOREIGN KEY (
-                user_id
-            )
-            REFERENCES users(
-                id
-            )
-        )
-        """
-    )
-
-    # =================================================
-    # SECURITY ALERTS
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        security_alerts (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            user_id INTEGER,
-
-            alert_type TEXT,
-
-            message TEXT,
-
-            is_read INTEGER
-            DEFAULT 0,
-
-            created_at TEXT
-        )
-        """
-    )
-    # =================================================
-    # PASSWORD RESET
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        password_resets (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            email TEXT
-            NOT NULL,
-
-            reset_code TEXT
-            NOT NULL,
-
-            created_at TEXT,
-
-            used INTEGER
-            DEFAULT 0
-        )
-        """
-    )
-
-    # =================================================
-    # SECURITY EVENTS
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        security_events (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            email TEXT,
-
-            event_type TEXT,
-
-            created_at TEXT
-        )
-        """
-    )
-
-    # =================================================
-    # USER ACTIVITY
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        user_activity (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            user_id INTEGER,
-
-            action TEXT,
-
-            value TEXT,
-
-            created_at TEXT,
-
-            FOREIGN KEY (
-                user_id
-            )
-            REFERENCES users(
-                id
-            )
-        )
-        """
-    )
-
-    # =================================================
-    # SCRAPER ERRORS
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        scraper_errors (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            tender_id TEXT,
-
-            organisation_name TEXT,
-
-            error_type TEXT,
-
-            error_message TEXT,
-
-            stage TEXT,
-
-            status TEXT
-            DEFAULT 'Open',
-
-            created_at TEXT,
-
-            resolved_at TEXT
-        )
-        """
-    )
-
-    # =================================================
-    # SCRAPER RUNS
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE TABLE
-        IF NOT EXISTS
-        scraper_runs (
-
-            id INTEGER
-            PRIMARY KEY
-            AUTOINCREMENT,
-
-            started_at TEXT,
-
-            completed_at TEXT,
-
-            status TEXT,
-
-            tenders_found INTEGER,
-
-            tenders_added INTEGER,
-
-            boq_downloaded INTEGER,
-
-            errors_count INTEGER
-        )
-        """
-    )
-
-    # =================================================
-    # INDEXES
-    # =================================================
-
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS
-        idx_tender_id
-        ON tenders(
-            tender_id
-        )
-        """
-    )
-
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS
-        idx_org_name
-        ON tenders(
-            organisation_name
-        )
-        """
-    )
-
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS
-        idx_active
-        ON tenders(
-            tender_active
-        )
-        """
-    )
-
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS
-        idx_boq_tender
-        ON boq_items(
-            tender_id
-        )
-        """
-    )
-
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS
-        idx_heading_tender
-        ON boq_headings(
-            tender_id
-        )
-        """
-    )
-
-    cursor.execute(
-        """
-        CREATE INDEX IF NOT EXISTS
-        idx_user_email
-        ON users(
-            email
-        )
-        """
-    )
-
-    cursor.execute(
-        """
-        CREATE UNIQUE INDEX IF NOT EXISTS
-        idx_boq_unique
-        ON boq_items(
-            tender_id,
-            item_no
-        )
-        """
-    )
-
-    cursor.execute(
-        """
-        CREATE UNIQUE INDEX IF NOT EXISTS
-        idx_heading_unique
-        ON boq_headings(
-            tender_id,
-            heading_no
-        )
-        """
-    )
-    
-
-    
-    cursor.execute(
-    	"""
-    	CREATE INDEX IF NOT EXISTS
-    	idx_org_chain
-    	ON tenders(
-        	organisation_chain_raw
-    	)	
-    	"""
-    )
-    cursor.execute(
-    """
-    CREATE INDEX IF NOT EXISTS
-    	idx_location
-    	ON tenders(
-        	location
-    	)
-    	"""
-    )
-
-    cursor.execute(
-    """
-    CREATE INDEX IF NOT EXISTS
-    	idx_tender_value_num
-    	ON tenders(
-        	tender_value_num
-    	)
-    	"""
-    )
-    
-    cursor.execute(
-    """
-    CREATE INDEX IF NOT EXISTS
-    	idx_bid_end_iso
-    	ON tenders(
-        	bid_end_iso
-    	)
-    	"""
-    )    
-
-
-
-    conn.commit()
-
-    conn.close()
-
-    print(
-        "Database initialized."
-    )
 
 # =====================================================
 # INSERT BOQ ITEM
@@ -1092,18 +542,18 @@ def email_exists(email):
         """
         SELECT 1
         FROM users
-        WHERE email = ?
+        WHERE email = %s
         """,
         (email,)
     )
 
     result = cursor.fetchone()
 
+    cursor.close()
     conn.close()
 
     return result is not None
-    
-    
+
 def create_user(
     name,
     email,
@@ -1125,28 +575,23 @@ def create_user(
             email,
             mobile,
             company_name,
-
             password_hash,
-
             verification_token,
-
             referral_source,
-
             created_at
 
         )
 
         VALUES (
 
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-
-            datetime('now')
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            %s,
+            CURRENT_TIMESTAMP
         )
         """,
 
@@ -1162,12 +607,11 @@ def create_user(
     )
 
     conn.commit()
-    conn.close()
+
+    cursor.close()
+    conn.close()   
     
-    
-def get_user_by_email(
-    email
-):
+def get_user_by_email(email):
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -1176,21 +620,19 @@ def get_user_by_email(
         """
         SELECT *
         FROM users
-        WHERE email = ?
+        WHERE email = %s
         """,
-
-        (
-            email,
-        )
+        (email,)
     )
 
-    row = cursor.fetchone()
+    user = cursor.fetchone()
 
+    cursor.close()
     conn.close()
 
-    return row
-    
-  
+    return user
+
+
 def get_user_by_token(token):
 
     conn = get_connection()
@@ -1200,13 +642,14 @@ def get_user_by_token(token):
         """
         SELECT *
         FROM users
-        WHERE verification_token = ?
+        WHERE verification_token = %s
         """,
         (token,)
     )
 
     user = cursor.fetchone()
 
+    cursor.close()
     conn.close()
 
     return user
@@ -1219,25 +662,28 @@ def verify_user(token):
     cursor.execute(
         """
         UPDATE users
+
         SET
-            is_verified = 1,
-            email_verified_at = datetime('now'),
+
+            is_verified = TRUE,
+            email_verified_at = CURRENT_TIMESTAMP,
             verification_token = NULL
-        WHERE verification_token = ?
+
+        WHERE verification_token = %s
         """,
+
         (token,)
     )
 
     conn.commit()
 
-    success = (
-        cursor.rowcount > 0
-    )
+    success = cursor.rowcount > 0
 
+    cursor.close()
     conn.close()
 
     return success
-    
+
 
 def update_last_login(user_id):
 
@@ -1247,15 +693,21 @@ def update_last_login(user_id):
     cursor.execute(
         """
         UPDATE users
-        SET last_login = datetime('now')
-        WHERE id = ?
+
+        SET last_login = CURRENT_TIMESTAMP
+
+        WHERE id = %s
         """,
+
         (user_id,)
     )
 
     conn.commit()
+
+    cursor.close()
     conn.close()
-    
+
+
 # =====================================================
 # DASH BOARD
 # =====================================================
@@ -1883,18 +1335,17 @@ def get_last_scraper_update():
 # =====================================================
 # CREATE PASSWORD RESET CODE
 # =====================================================    
+import secrets
+
 def create_password_reset_code(
     email
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     code = str(
-        secrets.randbelow(
-            900000
-        ) + 100000
+        secrets.randbelow(900000) + 100000
     )
 
     cursor.execute(
@@ -1907,21 +1358,25 @@ def create_password_reset_code(
 
         )
 
-        VALUES (?, ?, ?)
+        VALUES (
+
+            %s,
+            %s,
+            CURRENT_TIMESTAMP
+        )
         """,
         (
             email,
-            code,
-            datetime.now().isoformat()
+            code
         )
     )
 
     conn.commit()
 
+    cursor.close()
     conn.close()
 
-    return code 
-    
+    return code
        
 # =====================================================
 # VERIFY PASSWORD RESET CODE
@@ -1932,13 +1387,7 @@ def verify_reset_code(
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
-
-    cutoff = (
-        datetime.now()
-        - timedelta(minutes=30)
-    ).isoformat()
 
     cursor.execute(
         """
@@ -1948,13 +1397,16 @@ def verify_reset_code(
 
         WHERE
 
-            email = ?
+            email = %s
 
-            AND reset_code = ?
+            AND reset_code = %s
 
             AND used = 0
 
-            AND created_at >= ?
+            AND created_at >= (
+                CURRENT_TIMESTAMP
+                - INTERVAL '30 minutes'
+            )
 
         ORDER BY id DESC
 
@@ -1962,13 +1414,13 @@ def verify_reset_code(
         """,
         (
             email,
-            code,
-            cutoff
+            code
         )
     )
 
     result = cursor.fetchone()
 
+    cursor.close()
     conn.close()
 
     return result
@@ -1980,7 +1432,6 @@ def mark_reset_code_used(
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     cursor.execute(
@@ -1989,7 +1440,7 @@ def mark_reset_code_used(
 
         SET used = 1
 
-        WHERE id = ?
+        WHERE id = %s
         """,
         (
             reset_id,
@@ -1998,8 +1449,8 @@ def mark_reset_code_used(
 
     conn.commit()
 
+    cursor.close()
     conn.close()
-    
 
 # =====================================================
 # UPDATE PASSWORD
@@ -2010,16 +1461,15 @@ def update_user_password(
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     cursor.execute(
         """
         UPDATE users
 
-        SET password_hash = ?
+        SET password_hash = %s
 
-        WHERE email = ?
+        WHERE email = %s
         """,
         (
             password_hash,
@@ -2029,21 +1479,17 @@ def update_user_password(
 
     conn.commit()
 
+    cursor.close()
     conn.close()
-
 # =====================================================
 #LOG SECURITY EVENT
 # =====================================================    
 def log_security_event(
-
     email,
-
     event_type
-
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     cursor.execute(
@@ -2051,92 +1497,83 @@ def log_security_event(
         INSERT INTO security_events (
 
             email,
-
             event_type,
-
             created_at
 
         )
 
-        VALUES (?, ?, ?)
+        VALUES (
+
+            %s,
+            %s,
+            CURRENT_TIMESTAMP
+        )
         """,
         (
             email,
-            event_type,
-            datetime.now().isoformat()
+            event_type
         )
     )
 
     conn.commit()
 
+    cursor.close()
     conn.close()
 
 # =====================================================
 # RATE LIMIT
 # =====================================================    
+from datetime import timedelta
+
 def is_rate_limited(
-
     email,
-
     event_type,
-
     max_attempts,
-
     minutes
-
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
-
-    cutoff = (
-        datetime.now()
-        -
-        timedelta(
-            minutes=minutes
-        )
-    ).isoformat()
 
     cursor.execute(
         """
-        SELECT COUNT(*)
+        SELECT COUNT(*) AS count
 
         FROM security_events
 
         WHERE
 
-            email = ?
+            email = %s
 
-            AND event_type = ?
+            AND event_type = %s
 
-            AND created_at >= ?
+            AND created_at >= (
+                CURRENT_TIMESTAMP
+                - (%s * INTERVAL '1 minute')
+            )
         """,
         (
             email,
             event_type,
-            cutoff
+            minutes
         )
     )
 
-    count = cursor.fetchone()[0]
+    count = cursor.fetchone()["count"]
 
+    cursor.close()
     conn.close()
 
     return count >= max_attempts
-
 
 # =====================================================
 # DELETE OLD RESET CODE
 # =====================================================
 def delete_old_reset_codes(
-
     email
-
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     cursor.execute(
@@ -2145,7 +1582,7 @@ def delete_old_reset_codes(
 
         SET used = 1
 
-        WHERE email = ?
+        WHERE email = %s
         """,
         (
             email,
@@ -2154,25 +1591,20 @@ def delete_old_reset_codes(
 
     conn.commit()
 
+    cursor.close()
     conn.close()
-
 
 
 # =====================================================
 # CREATE SECURITY EVENT
 # =====================================================
 def create_security_alert(
-
     user_id,
-
     alert_type,
-
     message
-
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     cursor.execute(
@@ -2180,40 +1612,39 @@ def create_security_alert(
         INSERT INTO security_alerts (
 
             user_id,
-
             alert_type,
-
             message,
-
             created_at
 
         )
 
-        VALUES (?, ?, ?, ?)
+        VALUES (
+
+            %s,
+            %s,
+            %s,
+            CURRENT_TIMESTAMP
+        )
         """,
         (
             user_id,
             alert_type,
-            message,
-            datetime.now().isoformat()
+            message
         )
     )
 
     conn.commit()
 
+    cursor.close()
     conn.close()
-
 # =====================================================
 # GET UNREAD SECURITY EVENT
 # =====================================================
 def get_unread_security_alerts(
-
     user_id
-
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     cursor.execute(
@@ -2224,8 +1655,7 @@ def get_unread_security_alerts(
 
         WHERE
 
-            user_id = ?
-
+            user_id = %s
             AND is_read = 0
 
         ORDER BY id DESC
@@ -2237,6 +1667,7 @@ def get_unread_security_alerts(
 
     rows = cursor.fetchall()
 
+    cursor.close()
     conn.close()
 
     return rows
@@ -2246,13 +1677,10 @@ def get_unread_security_alerts(
 # MARK SECURITY EVENT READ
 # =====================================================
 def mark_security_alert_read(
-
     alert_id
-
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
 
     cursor.execute(
@@ -2261,7 +1689,7 @@ def mark_security_alert_read(
 
         SET is_read = 1
 
-        WHERE id = ?
+        WHERE id = %s
         """,
         (
             alert_id,
@@ -2270,34 +1698,20 @@ def mark_security_alert_read(
 
     conn.commit()
 
+    cursor.close()
     conn.close()
-
-
 # =====================================================
 # COUNT SECURITY EVENTS
 # =====================================================
 
 def count_recent_security_events(
-
     email,
-
     event_type,
-
     minutes
-
 ):
 
     conn = get_connection()
-
     cursor = conn.cursor()
-
-    cutoff = (
-        datetime.now()
-        -
-        timedelta(
-            minutes=minutes
-        )
-    ).isoformat()
 
     cursor.execute(
         """
@@ -2307,21 +1721,25 @@ def count_recent_security_events(
 
         WHERE
 
-            email = ?
+            email = %s
 
-            AND event_type = ?
+            AND event_type = %s
 
-            AND created_at >= ?
+            AND created_at >= (
+                CURRENT_TIMESTAMP
+                - (%s * INTERVAL '1 minute')
+            )
         """,
         (
             email,
             event_type,
-            cutoff
+            minutes
         )
     )
 
-    count = cursor.fetchone()[0]
+    count = cursor.fetchone()["count"]
 
+    cursor.close()
     conn.close()
 
     return count
@@ -2459,8 +1877,4 @@ def update_tender_status():
 # =====================================================
 # MAIN
 # =====================================================
-
-if __name__ == "__main__":
-
-    init_db()
 

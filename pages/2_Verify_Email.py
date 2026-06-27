@@ -1,6 +1,6 @@
 import streamlit as st
 
-from db import (
+from database.db_postgres import (
     get_user_by_token,
     verify_user
 )
