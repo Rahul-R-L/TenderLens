@@ -65,23 +65,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("TenderLens")
 
-st.write("Redirecting...")
-
-if st.session_state.get(
-    "logged_in",
-    False
-):
-
-    st.page_link(
-        "pages/4_Dashboard.py",
-        label="Open Dashboard"
-    )
-
+if st.session_state.get("logged_in", False):
+    st.switch_page("pages/4_Dashboard.py")
 else:
-
-    st.page_link(
-        "pages/3_Login.py",
-        label="Open Login"
-    )
+    st.switch_page("pages/3_Login.py")
