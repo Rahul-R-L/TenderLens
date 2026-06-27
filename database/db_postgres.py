@@ -665,7 +665,7 @@ def verify_user(token):
 
         SET
 
-            is_verified = TRUE,
+            is_verified = 1,
             email_verified_at = CURRENT_TIMESTAMP,
             verification_token = NULL
 
