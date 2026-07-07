@@ -128,33 +128,51 @@ def fetch_matches():
     return grouped
 
 
+
+
 def send_email(matches):
     total = len(matches)
-
     subject = f"TenderLens Alert | {total} New Matches"
 
     html = f"<h3>{total} new matching tenders found.</h3><hr>"
 
-    counts = defaultdict(int)
+    counts = {}
 
     for tid in sorted(matches):
         html += f"<b>{tid}</b><br>"
-        for r in sorted(matches[tid]):
-            html += f"&#10004; {r}<br>"
-            counts[r] += 1
+
+        for rule in sorted(matches[tid]):
+            html += f"&#10004; {rule}<br>"
+            counts[rule] = counts.get(rule, 0) + 1
+
         html += "<br><hr>"
 
     html += "<h4>Summary</h4>"
-    for r, c in counts.items():
-        html += f"{r}: {c}<br>"
 
-    resend.Emails.send({
-        "from": f"{APP_NAME} <noreply@tenderlens.in>",
-        "to": EMAIL_TO,
-        "subject": subject,
-        "html": html
-    })
+    for rule, count in counts.items():
+        html += f"{rule}: {count}<br>"
 
+    for attempt in range(3):
+        try:
+            response = resend.Emails.send({
+                "from": f"{APP_NAME} <noreply@tenderlens.in>",
+                "to": EMAIL_TO,
+                "subject": subject,
+                "html": html
+            })
+
+            print("Email sent successfully.")
+            print(response)
+
+            return True
+
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+
+            if attempt < 2:
+                time.sleep(5)
+
+    return False
 
 def main():
     parser = argparse.ArgumentParser()
@@ -184,9 +202,9 @@ def main():
         print("No new matching tenders.")
         return
 
-    send_email(matches)
+    success = send_email(matches)
 
-    if not args.all:
+    if success and not args.all:
         for tid, rules in matches.items():
             for rule in rules:
                 mark_sent(hist, tid, rule)
