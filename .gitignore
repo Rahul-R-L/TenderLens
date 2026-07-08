@@ -24,3 +24,7 @@ Thumbs.db
 *.log
 
 all_tenders.db
+tender_alert.py
+tender_alert.log
+alert_history.db
+
