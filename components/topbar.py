@@ -49,7 +49,7 @@ def render_topbar():
             f"""
             {user_name}
 
-            Early Adopter
+            ⭐ Early Adopter (Premium Access until 31 Oct 2026)
             """
         )
 
