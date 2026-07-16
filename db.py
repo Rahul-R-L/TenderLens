@@ -1858,6 +1858,8 @@ def get_high_value_tender_count():
             tender_active = 1
 
             AND tender_value_num >= 10000000
+
+            AND bid_end_iso >= datetime('now')
         """
     )
 
@@ -2375,6 +2377,8 @@ def get_top_departments(limit=4):
     FROM tenders
 
     WHERE tender_active = 1
+
+    AND bid_end_iso >= datetime('now')
 
     GROUP BY organisation_name
 
