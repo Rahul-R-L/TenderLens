@@ -1,5 +1,5 @@
 import streamlit as st
-
+from textwrap import dedent
 from database.db_postgres import (
     get_user_by_token,
     verify_user
@@ -78,7 +78,7 @@ if verify_user(token):
 
     st.balloons()
 
-    st.markdown("""
+    st.markdown( dedent("""
         <div style="
             background: linear-gradient(135deg, #FFFBEA, #FFF3C4);
             border: 2px solid #D4AF37;
@@ -166,12 +166,12 @@ if verify_user(token):
             </p>
 
         </div>
-        """,
+        """),
         unsafe_allow_html=True
     )
 
     if st.button(
-        "🚀 Continue to Login",
+        "Continue to Login",
         type="primary",
         use_container_width=True
     ):
