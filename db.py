@@ -1321,7 +1321,14 @@ def get_hierarchy_children(
         SELECT DISTINCT
             organisation_chain_raw
         FROM tenders
-        WHERE organisation_chain_raw IS NOT NULL
+        WHERE
+
+            organisation_chain_raw IS NOT NULL
+
+            AND tender_active = 1
+
+            AND bid_end_iso >= datetime('now')
+
         """
     )
 

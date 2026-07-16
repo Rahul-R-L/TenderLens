@@ -140,249 +140,154 @@ with st.expander(
     expanded=True
 ):
 
-    with st.form(
-        "search_form"
-    ):
 
-        keyword = st.text_input(
-            "Keyword",
-            value=st.session_state.search_keyword
+    keyword = st.text_input(
+        "Keyword",
+        value=st.session_state.search_keyword
+    )
+
+    st.session_state.search_keyword = keyword
+
+    organisation_paths = []
+
+    parent_path = ""
+
+    level = 1
+
+    while True:
+
+        options = get_hierarchy_children(parent_path)
+
+        if not options:
+            break
+
+        selected = st.multiselect(
+
+            f"Level {level}" if level > 1 else "Organisation",
+
+            options,
+
+            key=f"org_level_{level}"
+
         )
 
-        st.session_state.search_keyword = keyword
+        # -----------------------------
+        # Nothing selected
+        # -----------------------------
 
-        organisation_paths = []
+        if len(selected) == 0:
 
-        # =================================================
-        # LEVEL 1
-        # =================================================
+            if parent_path:
+                organisation_paths = [parent_path]
 
-        level1_options = (
-            get_hierarchy_children("")
+            break
+
+        # -----------------------------
+        # Multiple selected
+        # -----------------------------
+
+        if len(selected) > 1:
+
+            if parent_path:
+
+                organisation_paths = [
+
+                    parent_path + "||" + x
+
+                    for x in selected
+
+                ]
+
+            else:
+
+                organisation_paths = selected
+
+            break
+
+        # -----------------------------
+        # Single selected
+        # -----------------------------
+
+        if parent_path:
+
+            parent_path += "||" + selected[0]
+
+        else:
+
+            parent_path = selected[0]
+
+        organisation_paths = [
+
+            parent_path
+
+        ]
+
+        level += 1
+
+    # =================================================
+    # LOCATION
+    # =================================================
+
+    location = st.text_input(
+        "Location",
+        value=st.session_state.search_location
+    )
+
+    st.session_state.search_location = location
+
+    # =================================================
+    # VALUE
+    # =================================================
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        min_value = st.number_input(
+            "Min Tender Value",
+            min_value=0,
+            value=st.session_state.search_min_value,
+            step=100000
         )
 
-        level1_selected = st.multiselect(
-            "Organisation",
-            level1_options
+        st.session_state.search_min_value = min_value
+
+    with col2:
+
+        max_value = st.number_input(
+            "Max Tender Value",
+            min_value=0,
+            value=st.session_state.search_max_value,
+            step=100000
         )
 
-        # ---------------------------------------------
-        # NOTHING SELECTED
-        # ---------------------------------------------
+        st.session_state.search_max_value = max_value
 
-        if len(level1_selected) == 0:
+    # =================================================
+    # DATE RANGE
+    # =================================================
 
-            organisation_paths = []
+    col1, col2 = st.columns(2)
 
-        # ---------------------------------------------
-        # MULTIPLE LEVEL 1
-        # ---------------------------------------------
+    with col1:
 
-        elif len(level1_selected) > 1:
-
-            organisation_paths = (
-                level1_selected
-            )
-
-        # ---------------------------------------------
-        # SINGLE LEVEL 1
-        # ---------------------------------------------
-
-        elif len(level1_selected) == 1:
-
-            organisation_path = (
-                level1_selected[0]
-            )
-
-            organisation_paths = [
-                organisation_path
-            ]
-
-            # =========================================
-            # LEVEL 2
-            # =========================================
-
-            level2_options = (
-                get_hierarchy_children(
-                    organisation_path
-                )
-            )
-
-            if level2_options:
-
-                level2_selected = (
-                    st.multiselect(
-                        "Level 2",
-                        level2_options
-                    )
-                )
-
-                if len(level2_selected) > 1:
-
-                    organisation_paths = [
-
-                        organisation_path
-                        + "||" + x
-
-                        for x in level2_selected
-                    ]
-
-                elif len(level2_selected) == 1:
-
-                    organisation_path += (
-                        "||"
-                        +
-                        level2_selected[0]
-                    )
-
-                    organisation_paths = [
-                        organisation_path
-                    ]
-
-                    # =================================
-                    # LEVEL 3
-                    # =================================
-
-                    level3_options = (
-                        get_hierarchy_children(
-                            organisation_path
-                        )
-                    )
-
-                    if level3_options:
-
-                        level3_selected = (
-                            st.multiselect(
-                                "Level 3",
-                                level3_options
-                            )
-                        )
-
-                        if len(level3_selected) > 1:
-
-                            organisation_paths = [
-
-                                organisation_path
-                                + "||" + x
-
-                                for x in level3_selected
-                            ]
-
-                        elif len(level3_selected) == 1:
-
-                            organisation_path += (
-                                "||"
-                                +
-                                level3_selected[0]
-                            )
-
-                            organisation_paths = [
-                                organisation_path
-                            ]
-
-                            # =========================
-                            # LEVEL 4
-                            # =========================
-
-                            level4_options = (
-                                get_hierarchy_children(
-                                    organisation_path
-                                )
-                            )
-
-                            if level4_options:
-
-                                level4_selected = (
-                                    st.multiselect(
-                                        "Level 4",
-                                        level4_options
-                                    )
-                                )
-
-                                if len(level4_selected) > 1:
-
-                                    organisation_paths = [
-
-                                        organisation_path
-                                        + "||" + x
-
-                                        for x in level4_selected
-                                    ]
-
-                                elif len(level4_selected) == 1:
-
-                                    organisation_path += (
-                                        "||"
-                                        +
-                                        level4_selected[0]
-                                    )
-
-                                    organisation_paths = [
-                                        organisation_path
-                                    ]
-
-        # =================================================
-        # LOCATION
-        # =================================================
-
-        location = st.text_input(
-            "Location",
-            value=st.session_state.search_location
+        closing_from = st.date_input(
+            "Closing Date From",
+            value=None
         )
 
-        st.session_state.search_location = location
+    with col2:
 
-        # =================================================
-        # VALUE
-        # =================================================
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            min_value = st.number_input(
-                "Min Tender Value",
-                min_value=0,
-                value=st.session_state.search_min_value,
-                step=100000
-            )
-
-            st.session_state.search_min_value = min_value
-
-        with col2:
-
-            max_value = st.number_input(
-                "Max Tender Value",
-                min_value=0,
-                value=st.session_state.search_max_value,
-                step=100000
-            )
-
-            st.session_state.search_max_value = max_value
-
-        # =================================================
-        # DATE RANGE
-        # =================================================
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-
-            closing_from = st.date_input(
-                "Closing Date From",
-                value=None
-            )
-
-        with col2:
-
-            closing_to = st.date_input(
-                "Closing Date To",
-                value=None
-            )
-
-        search_clicked = st.form_submit_button(
-            "🔍 Search"
+        closing_to = st.date_input(
+            "Closing Date To",
+            value=None
         )
+
+    search_clicked = st.button(
+        "🔍 Search",
+        type="primary"
+    )
+    
 # =====================================================
 # SEARCH
 # =====================================================
@@ -390,32 +295,32 @@ with st.expander(
 if search_clicked:
 
     st.session_state[
-        "search_filters"
+    "search_filters"
     ] = {
 
-        "keyword": keyword,
+    "keyword": keyword,
 
-        "organisation_paths":
-        organisation_paths,
+    "organisation_paths":
+    organisation_paths,
 
-        "location":
-        location,
+    "location":
+    location,
 
-        "min_value":
-        min_value,
+    "min_value":
+    min_value,
 
-        "max_value":
-        max_value,
+    "max_value":
+    max_value,
 
-        "closing_from":
-        closing_from,
+    "closing_from":
+    closing_from,
 
-        "closing_to":
-        closing_to
+    "closing_to":
+    closing_to
     }
 
     st.session_state.search_page = 1
 
     st.switch_page(
-        "pages/6_Search_Results.py"
+    "pages/6_Search_Results.py"
     )
