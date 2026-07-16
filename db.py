@@ -2395,7 +2395,7 @@ def get_top_departments(limit=4):
 # =====================================================
 # GET HIGH VALUE TENDERS
 # =====================================================
-def get_high_value_tenders(limit=10):
+def get_high_value_tenders():
 
     conn = get_connection()
 
@@ -2422,7 +2422,7 @@ def get_high_value_tenders(limit=10):
 
     ORDER BY tender_value_num DESC
 
-    LIMIT {limit}
+    
     """
 
     df = pd.read_sql_query(
