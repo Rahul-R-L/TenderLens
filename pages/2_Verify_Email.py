@@ -78,8 +78,7 @@ if verify_user(token):
 
     st.balloons()
 
-    st.markdown(
-        """
+    st.markdown("""
         <div style="
             background: linear-gradient(135deg, #FFFBEA, #FFF3C4);
             border: 2px solid #D4AF37;
