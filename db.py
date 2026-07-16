@@ -2420,6 +2420,8 @@ def get_high_value_tenders():
 
         AND tender_value_num >= 10000000
 
+        AND bid_end_iso >= datetime('now')
+
     ORDER BY tender_value_num DESC
 
     
