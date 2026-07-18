@@ -1275,6 +1275,7 @@ def get_dashboard_stats():
         SELECT COUNT(*)
         FROM tenders
         WHERE tender_active = 1
+        AND date(bid_end_iso) = date('now')
         """
     )
 
@@ -1289,6 +1290,7 @@ def get_dashboard_stats():
             COUNT(*)
         FROM tenders
         WHERE tender_active = 1
+        AND date(bid_end_iso) = date('now')
         GROUP BY organisation_name
         ORDER BY COUNT(*) DESC
         """
