@@ -1275,7 +1275,7 @@ def get_dashboard_stats():
         SELECT COUNT(*)
         FROM tenders
         WHERE tender_active = 1
-        AND date(bid_end_iso) = date('now')
+        AND bid_end_iso >= datetime('now')
         """
     )
 
@@ -1290,7 +1290,7 @@ def get_dashboard_stats():
             COUNT(*)
         FROM tenders
         WHERE tender_active = 1
-        AND date(bid_end_iso) = date('now')
+        AND bid_end_iso >= datetime('now')
         GROUP BY organisation_name
         ORDER BY COUNT(*) DESC
         """
@@ -1829,9 +1829,7 @@ def get_closing_this_week_count():
         WHERE
 
             tender_active = 1
-
-            AND bid_end_iso IS NOT NULL
-
+            AND bid_end_iso >= datetime('now')
             AND date(bid_end_iso)
                 BETWEEN date('now')
                 AND date('now', '+7 days')
@@ -2352,7 +2350,7 @@ def get_closing_today_count():
         FROM tenders
         WHERE
             tender_active = 1
-            AND bid_end_iso IS NOT NULL
+            AND bid_end_iso >= datetime('now')
             AND date(bid_end_iso) = date('now')
         """
     )
