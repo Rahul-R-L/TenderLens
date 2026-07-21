@@ -35,7 +35,7 @@ dst.commit()
 active_tenders = src_cur.execute("""
     SELECT *
     FROM tenders
-    WHERE datetime(bid_end_iso) >= datetime('now', 'localtime')
+    WHERE date(bid_end_iso) >= date('now', 'localtime')
 """).fetchall()
 
 print(f"Active tenders found : {len(active_tenders)}")
