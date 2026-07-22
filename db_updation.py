@@ -17,17 +17,22 @@ dst_cur = dst.cursor()
 # Create required tables
 # --------------------------------------------------
 for table in TABLES:
-    create_sql = src_cur.execute("""
+
+    row = src_cur.execute("""
         SELECT sql
         FROM sqlite_master
         WHERE type='table'
         AND name=?
-    """, (table,)).fetchone()[0]
+    """, (table,)).fetchone()
+
+    if row is None:
+        print(f"Table '{table}' not found in {SOURCE_DB}")
+        continue
+
+    create_sql = row[0]
 
     dst_cur.execute(f"DROP TABLE IF EXISTS {table}")
     dst_cur.execute(create_sql)
-
-dst.commit()
 
 # --------------------------------------------------
 # Get active tenders
@@ -35,7 +40,7 @@ dst.commit()
 active_tenders = src_cur.execute("""
     SELECT *
     FROM tenders
-    WHERE date(bid_end_iso) >= date('now', 'localtime')
+    WHERE datetime(bid_end_iso) >= datetime('now', 'localtime')
 """).fetchall()
 
 print(f"Active tenders found : {len(active_tenders)}")
