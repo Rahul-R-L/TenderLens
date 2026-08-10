@@ -8,6 +8,7 @@ from reportlab.lib.styles import (
     ParagraphStyle
 )
 from reportlab.lib.units import mm
+from xml.sax.saxutils import escape
 
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -441,27 +442,18 @@ def create_tender_pdf(
             row["description"]
         )
 
-        parts = desc.split(
-            ":",
-            1
-        )
+        parts = desc.split(":", 1)
 
         if len(parts) == 2:
-
-            code = parts[0].strip()
-
-            description = parts[1].strip()
+            code = escape(parts[0].strip())
+            description = escape(parts[1].strip())
 
             desc_html = (
-
                 f"<b>{code}</b><br/>"
                 f"{description}"
-
             )
-
         else:
-
-            desc_html = desc
+            desc_html = escape(desc)
 
         unit = str(
             row["unit"]
