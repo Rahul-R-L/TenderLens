@@ -1,67 +1,78 @@
 """
-sync_active_tenders.py
+db_convert.py
 
-Sync ACTIVE tenders from TenderLens v1.1 Supabase/PostgreSQL
-into the TenderLens v1.0 SQLite database.
+TenderLens v1.1 Supabase/PostgreSQL
+        ->
+TenderLens v1.0 SQLite
 
-SOURCE
-------
-Supabase/PostgreSQL
+Copies ONLY active tenders and the BOQ data belonging to those tenders.
 
-    tenders
-    tender_boq_headers
-    tender_boq_items
+ACTIVE CRITERIA
+---------------
+bid_submission_end > CURRENT_TIMESTAMP
 
-TARGET
-------
-SQLite
+TIMEZONE
+--------
+PostgreSQL session timezone:
+    Asia/Kolkata
 
-    tenders
-    boq_headings
-    boq_items
+SQLite timestamps:
+    IST (+0530)
 
-IMPORTANT
----------
-Only ACTIVE tenders are copied.
+V1.0 TARGET TABLES
+------------------
+tenders
+boq_items
+boq_headings
 
-A tender is considered active when:
+The target SQLite schema is kept compatible with the existing
+TenderLens v1.0 database.
 
-    bid_submission_end > current UTC time
+Required environment variables
+-------------------------------
 
-The SQLite database is rebuilt as a clean snapshot.
-
-Existing tenders.db is backed up before replacement.
-
-Required environment variables:
-
-    SUPABASE_DB_HOST
-    SUPABASE_DB_PORT
-    SUPABASE_DB_NAME
-    SUPABASE_DB_USER
-    SUPABASE_DB_PASSWORD
+SUPABASE_DB_HOST
+SUPABASE_DB_PORT
+SUPABASE_DB_NAME
+SUPABASE_DB_USER
+SUPABASE_DB_PASSWORD
 
 Optional:
 
-    SQLITE_DB_PATH
+SQLITE_DB_PATH
 
-    Defaults to:
-        tenders.db
+Default:
+    tenders.db
+
+Optional .env file is supported.
 """
+
+# ============================================================
+# IMPORTS
+# ============================================================
 
 import os
 import sqlite3
 import shutil
 import tempfile
-from datetime import datetime, timezone
+
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
+
 from dotenv import load_dotenv
-
-
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+
+# ============================================================
+# LOAD .ENV
+# ============================================================
+
 load_dotenv()
+
+
 # ============================================================
 # CONFIGURATION
 # ============================================================
@@ -71,17 +82,25 @@ SQLITE_DB_PATH = os.getenv(
     "tenders.db"
 )
 
+
 SUPABASE_CONFIG = {
     "host": os.getenv("SUPABASE_DB_HOST"),
-    "port": os.getenv("SUPABASE_DB_PORT", "5432"),
+    "port": os.getenv(
+        "SUPABASE_DB_PORT",
+        "5432"
+    ),
     "dbname": os.getenv("SUPABASE_DB_NAME"),
     "user": os.getenv("SUPABASE_DB_USER"),
     "password": os.getenv("SUPABASE_DB_PASSWORD"),
 }
 
 
+# Explicit Indian Standard Time
+IST = ZoneInfo("Asia/Kolkata")
+
+
 # ============================================================
-# SQLITE V1.0 SCHEMA
+# V1.0 SQLITE SCHEMA
 # ============================================================
 
 CREATE_TENDERS_SQL = """
@@ -134,30 +153,26 @@ CREATE TABLE boq_headings (
 
 
 # ============================================================
-# SUPABASE CONNECTION
+# CONFIG VALIDATION
 # ============================================================
 
 def validate_config():
 
-    required = [
-        "SUPABASE_DB_HOST",
-        "SUPABASE_DB_PORT",
-        "SUPABASE_DB_NAME",
-        "SUPABASE_DB_USER",
-        "SUPABASE_DB_PASSWORD",
-    ]
+    required = {
+        "SUPABASE_DB_HOST": SUPABASE_CONFIG["host"],
+        "SUPABASE_DB_NAME": SUPABASE_CONFIG["dbname"],
+        "SUPABASE_DB_USER": SUPABASE_CONFIG["user"],
+        "SUPABASE_DB_PASSWORD": SUPABASE_CONFIG["password"],
+    }
 
     missing = [
         key
-        for key in required
-        if not (
-            os.getenv(key)
-            if key != "SUPABASE_DB_PORT"
-            else os.getenv(key, "5432")
-        )
+        for key, value in required.items()
+        if not value
     ]
 
     if missing:
+
         raise RuntimeError(
             "Missing Supabase environment variables:\n"
             + "\n".join(
@@ -167,11 +182,17 @@ def validate_config():
         )
 
 
+# ============================================================
+# CONNECT TO SUPABASE
+# ============================================================
+
 def connect_supabase():
 
     validate_config()
 
-    print("Connecting to Supabase...")
+    print(
+        "Connecting to Supabase..."
+    )
 
     conn = psycopg2.connect(
         host=SUPABASE_CONFIG["host"],
@@ -182,62 +203,70 @@ def connect_supabase():
         sslmode="require",
     )
 
-    print("Supabase connection successful.")
+    # --------------------------------------------------------
+    # IMPORTANT:
+    # Set PostgreSQL session timezone to IST.
+    # --------------------------------------------------------
+
+    with conn.cursor() as cur:
+
+        cur.execute(
+            "SET TIME ZONE 'Asia/Kolkata';"
+        )
+
+    print(
+        "Supabase connection successful."
+    )
+
+    print(
+        "PostgreSQL session timezone: Asia/Kolkata"
+    )
 
     return conn
 
 
 # ============================================================
-# DATE / TIME HELPERS
+# DATETIME HELPERS
 # ============================================================
 
-def ensure_utc(dt):
+def to_ist(dt):
     """
-    Convert datetime to timezone-aware UTC.
+    Convert a datetime to IST.
+
+    PostgreSQL returns timestamptz values as timezone-aware
+    datetime objects.
+
+    If a naive datetime is received, it is assumed to already
+    represent IST.
     """
 
     if dt is None:
         return None
 
     if dt.tzinfo is None:
+
         return dt.replace(
-            tzinfo=timezone.utc
+            tzinfo=IST
         )
 
-    return dt.astimezone(timezone.utc)
-
-
-def is_active(bid_submission_end):
-    """
-    Return True when the tender deadline is still in the future.
-    """
-
-    if bid_submission_end is None:
-        return False
-
-    dt = ensure_utc(
-        bid_submission_end
+    return dt.astimezone(
+        IST
     )
 
-    now = datetime.now(
-        timezone.utc
-    )
 
-    return dt > now
-
-
-def datetime_to_text(dt):
+def datetime_to_sqlite_text(dt):
     """
-    Convert PostgreSQL timestamp to SQLite-friendly text.
+    Convert datetime to SQLite-compatible IST text.
 
     Example:
-        2026-08-09 12:30:00+00:00
+
+        2026-08-11 22:30:00+0530
     """
 
     if dt is None:
         return None
 
-    dt = ensure_utc(dt)
+    dt = to_ist(dt)
 
     return dt.strftime(
         "%Y-%m-%d %H:%M:%S%z"
@@ -246,73 +275,98 @@ def datetime_to_text(dt):
 
 def datetime_to_iso(dt):
     """
-    Convert PostgreSQL timestamp to ISO-8601.
+    Convert datetime to ISO-8601 with IST offset.
+
+    Example:
+
+        2026-08-11T22:30:00+05:30
     """
 
     if dt is None:
         return None
 
-    dt = ensure_utc(dt)
+    dt = to_ist(dt)
 
     return dt.isoformat()
 
 
 # ============================================================
-# VALUE CONVERSION
+# TENDER VALUE CONVERSION
 # ============================================================
 
 def parse_tender_value(raw_value):
     """
-    Convert portal_tender_value_raw into a REAL-compatible
-    Python float.
+    Convert portal_tender_value_raw to float.
 
-    Example:
+    Examples:
 
-        "1,25,00,000.00"
+        "1,25,00,000"
             ->
-        125000000.0
+        12500000.0
 
-    Handles:
-        commas
-        whitespace
-        currency symbols
-        empty values
-        NULL
+        "₹ 1,25,00,000.00"
+            ->
+        12500000.0
+
+    NULL/empty/invalid values become None.
     """
 
     if raw_value is None:
         return None
 
-    value = str(raw_value).strip()
+    value = str(
+        raw_value
+    ).strip()
 
     if not value:
         return None
 
     # Remove commas
-    value = value.replace(",", "")
+    value = value.replace(
+        ",",
+        ""
+    )
 
     # Remove common currency symbols/text
-    value = (
-        value
-        .replace("₹", "")
-        .replace("Rs.", "")
-        .replace("Rs", "")
-        .strip()
+    value = value.replace(
+        "₹",
+        ""
+    )
+
+    value = value.replace(
+        "Rs.",
+        ""
+    )
+
+    value = value.replace(
+        "Rs",
+        ""
     )
 
     # Remove whitespace
-    value = value.replace(" ", "")
+    value = value.replace(
+        " ",
+        ""
+    )
 
     try:
-        number = Decimal(value)
 
-        return float(number)
+        number = Decimal(
+            value
+        )
 
-    except (InvalidOperation, ValueError):
+        return float(
+            number
+        )
+
+    except (
+        InvalidOperation,
+        ValueError
+    ):
 
         print(
-            f"WARNING: Could not convert tender value: "
-            f"{raw_value!r}"
+            "WARNING: Could not convert "
+            f"tender value: {raw_value!r}"
         )
 
         return None
@@ -330,11 +384,11 @@ def get_organisation_name(
 
     Example:
 
-        "PWD|Kerala|Buildings Division|Kozhikode"
+        PWD|Buildings Division|Kozhikode
 
     becomes:
 
-        "PWD"
+        PWD
     """
 
     if organisation_chain_raw is None:
@@ -358,10 +412,17 @@ def fetch_active_tenders(
     pg_conn
 ):
     """
-    Fetch only the fields needed to construct
-    the v1.0 tenders table.
+    Fetch active tenders.
 
-    We intentionally do not use SELECT *.
+    IMPORTANT:
+    ----------
+    bid_submission_end is PostgreSQL timestamptz.
+
+    CURRENT_TIMESTAMP is therefore compared against the
+    actual absolute instant.
+
+    The PostgreSQL session timezone has already been set to
+    Asia/Kolkata, so returned timestamps are displayed in IST.
     """
 
     sql = """
@@ -379,7 +440,7 @@ def fetch_active_tenders(
             scraped_at
         FROM tenders
         WHERE bid_submission_end IS NOT NULL
-          AND bid_submission_end > NOW()
+          AND bid_submission_end > CURRENT_TIMESTAMP
         ORDER BY bid_submission_end ASC
     """
 
@@ -391,7 +452,9 @@ def fetch_active_tenders(
         cursor_factory=RealDictCursor
     ) as cur:
 
-        cur.execute(sql)
+        cur.execute(
+            sql
+        )
 
         rows = cur.fetchall()
 
@@ -422,7 +485,8 @@ def fetch_boq_headings(
             id,
             tender_id,
             header_no,
-            header_name
+            header_name,
+            display_order
         FROM tender_boq_headers
         WHERE tender_id = ANY(%s)
         ORDER BY
@@ -432,7 +496,7 @@ def fetch_boq_headings(
     """
 
     print(
-        "Fetching BOQ headings..."
+        "\nFetching BOQ headings..."
     )
 
     with pg_conn.cursor(
@@ -441,7 +505,11 @@ def fetch_boq_headings(
 
         cur.execute(
             sql,
-            (list(supabase_tender_ids),)
+            (
+                list(
+                    supabase_tender_ids
+                ),
+            )
         )
 
         rows = cur.fetchall()
@@ -477,7 +545,8 @@ def fetch_boq_items(
             unit,
             quantity,
             rate,
-            amount
+            amount,
+            display_order
         FROM tender_boq_items
         WHERE tender_id = ANY(%s)
         ORDER BY
@@ -487,7 +556,7 @@ def fetch_boq_items(
     """
 
     print(
-        "Fetching BOQ items..."
+        "\nFetching BOQ items..."
     )
 
     with pg_conn.cursor(
@@ -496,7 +565,11 @@ def fetch_boq_items(
 
         cur.execute(
             sql,
-            (list(supabase_tender_ids),)
+            (
+                list(
+                    supabase_tender_ids
+                ),
+            )
         )
 
         rows = cur.fetchall()
@@ -552,7 +625,9 @@ def insert_tenders(
     tenders
 ):
     """
-    Convert Supabase tender records to the exact v1.0 schema.
+    Insert tenders using the exact v1.0 schema.
+
+    SQLite IDs are generated locally.
     """
 
     sql = """
@@ -578,25 +653,8 @@ def insert_tenders(
             bid_end_iso
         )
         VALUES (
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
     """
 
@@ -607,9 +665,9 @@ def insert_tenders(
         start=1
     ):
 
-        portal_tender_id = (
-            row["portal_tender_id"]
-        )
+        # ----------------------------------------------------
+        # Organisation
+        # ----------------------------------------------------
 
         organisation_chain_raw = (
             row["organisation_chain_raw"]
@@ -621,24 +679,38 @@ def insert_tenders(
             )
         )
 
+        # ----------------------------------------------------
+        # Tender value
+        # ----------------------------------------------------
+
         tender_value = (
             parse_tender_value(
-                row["portal_tender_value_raw"]
+                row[
+                    "portal_tender_value_raw"
+                ]
             )
         )
 
+        # ----------------------------------------------------
+        # Dates
+        # ----------------------------------------------------
+
         bid_end = (
-            row["bid_submission_end"]
+            row[
+                "bid_submission_end"
+            ]
         )
 
         scraped_at = (
-            datetime_to_text(
-                row["scraped_at"]
+            datetime_to_sqlite_text(
+                row[
+                    "scraped_at"
+                ]
             )
         )
 
         bid_submission_end_date = (
-            datetime_to_text(
+            datetime_to_sqlite_text(
                 bid_end
             )
         )
@@ -649,15 +721,23 @@ def insert_tenders(
             )
         )
 
+        # ----------------------------------------------------
+        # Build row
+        # ----------------------------------------------------
+
         data.append(
             (
                 sqlite_id,
 
-                # tender_id
-                portal_tender_id,
+                # v1.0 tender_id
+                row[
+                    "portal_tender_id"
+                ],
 
                 # title
-                row["title"],
+                row[
+                    "title"
+                ],
 
                 # organisation_name
                 organisation_name,
@@ -666,7 +746,9 @@ def insert_tenders(
                 organisation_chain_raw,
 
                 # location
-                row["location"],
+                row[
+                    "location"
+                ],
 
                 # tender_value
                 tender_value,
@@ -681,13 +763,19 @@ def insert_tenders(
                 1,
 
                 # tender_inviting_authority
-                row["authority_name"],
+                row[
+                    "authority_name"
+                ],
 
                 # authority_address
-                row["authority_address"],
+                row[
+                    "authority_address"
+                ],
 
                 # work_description
-                row["work_description"],
+                row[
+                    "work_description"
+                ],
 
                 # tender_url
                 None,
@@ -714,6 +802,10 @@ def insert_tenders(
         data
     )
 
+    print(
+        f"Inserted {len(data)} tenders."
+    )
+
 
 # ============================================================
 # INSERT BOQ HEADINGS
@@ -725,17 +817,17 @@ def insert_boq_headings(
     tender_id_map
 ):
     """
-    Convert:
+    Supabase:
 
-        Supabase tender_boq_headers
+        tender_boq_headers.tender_id
+            ->
+        Supabase tenders.id
 
-    into:
+    SQLite:
 
-        SQLite boq_headings
-
-    The Supabase tender_id is a numeric internal ID.
-
-    SQLite needs portal_tender_id.
+        boq_headings.tender_id
+            ->
+        v1.0 tender_id / portal_tender_id
     """
 
     sql = """
@@ -750,14 +842,16 @@ def insert_boq_headings(
 
     data = []
 
-    sqlite_id = 1
-
     skipped = 0
+
+    sqlite_id = 1
 
     for row in headings:
 
         supabase_tender_id = (
-            row["tender_id"]
+            row[
+                "tender_id"
+            ]
         )
 
         portal_tender_id = (
@@ -767,15 +861,24 @@ def insert_boq_headings(
         )
 
         if portal_tender_id is None:
+
             skipped += 1
+
             continue
 
         data.append(
             (
                 sqlite_id,
+
                 portal_tender_id,
-                row["header_no"],
-                row["header_name"],
+
+                row[
+                    "header_no"
+                ],
+
+                row[
+                    "header_name"
+                ],
             )
         )
 
@@ -786,10 +889,15 @@ def insert_boq_headings(
         data
     )
 
+    print(
+        f"Inserted {len(data)} BOQ headings."
+    )
+
     if skipped:
+
         print(
-            f"WARNING: skipped {skipped} BOQ headings "
-            f"because their tender was not found."
+            "WARNING: "
+            f"Skipped {skipped} headings."
         )
 
 
@@ -803,13 +911,7 @@ def insert_boq_items(
     tender_id_map
 ):
     """
-    Convert:
-
-        Supabase tender_boq_items
-
-    into:
-
-        SQLite boq_items
+    Convert Supabase BOQ items to the v1.0 schema.
     """
 
     sql = """
@@ -828,14 +930,16 @@ def insert_boq_items(
 
     data = []
 
-    sqlite_id = 1
-
     skipped = 0
+
+    sqlite_id = 1
 
     for row in boq_items:
 
         supabase_tender_id = (
-            row["tender_id"]
+            row[
+                "tender_id"
+            ]
         )
 
         portal_tender_id = (
@@ -845,25 +949,62 @@ def insert_boq_items(
         )
 
         if portal_tender_id is None:
+
             skipped += 1
+
             continue
+
+        # ----------------------------------------------------
+        # Numeric conversions
+        # ----------------------------------------------------
+
+        quantity = (
+            float(
+                row["quantity"]
+            )
+            if row["quantity"] is not None
+            else None
+        )
+
+        rate = (
+            float(
+                row["rate"]
+            )
+            if row["rate"] is not None
+            else None
+        )
+
+        amount = (
+            float(
+                row["amount"]
+            )
+            if row["amount"] is not None
+            else None
+        )
 
         data.append(
             (
                 sqlite_id,
+
                 portal_tender_id,
-                row["item_no"],
-                row["description"],
-                float(row["quantity"])
-                if row["quantity"] is not None
-                else None,
-                row["unit"],
-                float(row["rate"])
-                if row["rate"] is not None
-                else None,
-                float(row["amount"])
-                if row["amount"] is not None
-                else None,
+
+                row[
+                    "item_no"
+                ],
+
+                row[
+                    "description"
+                ],
+
+                quantity,
+
+                row[
+                    "unit"
+                ],
+
+                rate,
+
+                amount,
             )
         )
 
@@ -874,15 +1015,20 @@ def insert_boq_items(
         data
     )
 
+    print(
+        f"Inserted {len(data)} BOQ items."
+    )
+
     if skipped:
+
         print(
-            f"WARNING: skipped {skipped} BOQ items "
-            f"because their tender was not found."
+            "WARNING: "
+            f"Skipped {skipped} BOQ items."
         )
 
 
 # ============================================================
-# INDEXES
+# CREATE INDEXES
 # ============================================================
 
 def create_indexes(
@@ -890,7 +1036,7 @@ def create_indexes(
 ):
 
     print(
-        "Creating SQLite indexes..."
+        "\nCreating indexes..."
     )
 
     indexes = [
@@ -927,33 +1073,66 @@ def create_indexes(
     ]
 
     for sql in indexes:
-        conn.execute(sql)
+
+        conn.execute(
+            sql
+        )
 
     conn.commit()
 
+    print(
+        "Indexes created."
+    )
+
 
 # ============================================================
-# VALIDATION
+# VALIDATE SQLITE DATABASE
 # ============================================================
 
 def validate_database(
     conn,
     active_tenders
 ):
-    """
-    Perform consistency checks before replacing
-    the production SQLite database.
-    """
 
     print(
-        "\nValidating generated SQLite database..."
+        "\n" + "=" * 70
+    )
+
+    print(
+        "VALIDATING SQLITE DATABASE"
+    )
+
+    print(
+        "=" * 70
     )
 
     cursor = conn.cursor()
 
-    # --------------------------------------------------------
-    # Count tenders
-    # --------------------------------------------------------
+    # ========================================================
+    # SQLite integrity
+    # ========================================================
+
+    cursor.execute(
+        "PRAGMA integrity_check"
+    )
+
+    integrity = (
+        cursor.fetchone()[0]
+    )
+
+    print(
+        f"SQLite integrity : {integrity}"
+    )
+
+    if integrity != "ok":
+
+        raise RuntimeError(
+            "SQLite integrity check failed."
+        )
+
+    # ========================================================
+    # Tender count
+    # ========================================================
 
     cursor.execute(
         "SELECT COUNT(*) FROM tenders"
@@ -968,18 +1147,19 @@ def validate_database(
     )
 
     print(
-        f"Tenders      : {tender_count} "
-        f"(expected {expected_count})"
+        f"Tenders          : {tender_count}"
+        f" / {expected_count}"
     )
 
     if tender_count != expected_count:
+
         raise RuntimeError(
             "Tender count validation failed."
         )
 
-    # --------------------------------------------------------
-    # Count BOQ
-    # --------------------------------------------------------
+    # ========================================================
+    # BOQ counts
+    # ========================================================
 
     cursor.execute(
         "SELECT COUNT(*) FROM boq_items"
@@ -993,21 +1173,21 @@ def validate_database(
         "SELECT COUNT(*) FROM boq_headings"
     )
 
-    heading_count = (
+    boq_heading_count = (
         cursor.fetchone()[0]
     )
 
     print(
-        f"BOQ items    : {boq_item_count}"
+        f"BOQ items        : {boq_item_count}"
     )
 
     print(
-        f"BOQ headings : {heading_count}"
+        f"BOQ headings     : {boq_heading_count}"
     )
 
-    # --------------------------------------------------------
-    # Verify tender IDs
-    # --------------------------------------------------------
+    # ========================================================
+    # Missing tender IDs
+    # ========================================================
 
     cursor.execute(
         """
@@ -1018,19 +1198,51 @@ def validate_database(
         """
     )
 
-    missing_tender_ids = (
+    missing_ids = (
         cursor.fetchone()[0]
     )
 
-    if missing_tender_ids:
+    if missing_ids:
+
         raise RuntimeError(
-            f"{missing_tender_ids} tenders "
+            f"{missing_ids} tenders "
             "have missing tender_id."
         )
 
-    # --------------------------------------------------------
-    # Verify BOQ relationships
-    # --------------------------------------------------------
+    # ========================================================
+    # Duplicate tender IDs
+    # ========================================================
+
+    cursor.execute(
+        """
+        SELECT tender_id, COUNT(*)
+        FROM tenders
+        GROUP BY tender_id
+        HAVING COUNT(*) > 1
+        """
+    )
+
+    duplicates = cursor.fetchall()
+
+    if duplicates:
+
+        print(
+            "\nDuplicate tender IDs:"
+        )
+
+        for tender_id, count in duplicates:
+
+            print(
+                f"  {tender_id}: {count}"
+            )
+
+        raise RuntimeError(
+            "Duplicate tender_id values found."
+        )
+
+    # ========================================================
+    # Orphan BOQ items
+    # ========================================================
 
     cursor.execute(
         """
@@ -1046,10 +1258,19 @@ def validate_database(
         cursor.fetchone()[0]
     )
 
+    print(
+        f"Orphan BOQ items : {orphan_items}"
+    )
+
     if orphan_items:
+
         raise RuntimeError(
-            f"{orphan_items} orphan BOQ items found."
+            "Orphan BOQ items found."
         )
+
+    # ========================================================
+    # Orphan BOQ headings
+    # ========================================================
 
     cursor.execute(
         """
@@ -1065,14 +1286,19 @@ def validate_database(
         cursor.fetchone()[0]
     )
 
+    print(
+        f"Orphan headings  : {orphan_headings}"
+    )
+
     if orphan_headings:
+
         raise RuntimeError(
-            f"{orphan_headings} orphan BOQ headings found."
+            "Orphan BOQ headings found."
         )
 
-    # --------------------------------------------------------
-    # Verify every tender is actually active
-    # --------------------------------------------------------
+    # ========================================================
+    # Verify all tenders are marked active
+    # ========================================================
 
     cursor.execute(
         """
@@ -1086,15 +1312,20 @@ def validate_database(
         cursor.fetchone()[0]
     )
 
+    print(
+        f"Inactive tenders : {inactive_count}"
+    )
+
     if inactive_count:
+
         raise RuntimeError(
-            f"{inactive_count} inactive tenders "
-            "were included."
+            "Inactive tenders found in "
+            "the active-tender database."
         )
 
-    # --------------------------------------------------------
-    # Verify no expired tender
-    # --------------------------------------------------------
+    # ========================================================
+    # Verify deadline values
+    # ========================================================
 
     cursor.execute(
         """
@@ -1107,72 +1338,148 @@ def validate_database(
 
     rows = cursor.fetchall()
 
-    now = datetime.now(
-        timezone.utc
+    now_ist = datetime.now(
+        IST
     )
 
     expired = []
 
-    for tender_id, end_date in rows:
+    for tender_id, deadline in rows:
+
+        if not deadline:
+
+            expired.append(
+                tender_id
+            )
+
+            continue
 
         try:
 
-            dt = datetime.strptime(
-                end_date,
+            deadline_dt = datetime.strptime(
+                deadline,
                 "%Y-%m-%d %H:%M:%S%z"
             )
 
-            if dt <= now:
-                expired.append(
-                    tender_id
-                )
+        except ValueError:
 
-        except Exception:
-            # The format was generated by this script,
-            # so this should never happen.
             raise RuntimeError(
-                f"Invalid bid_submission_end_date "
-                f"for tender {tender_id}: {end_date}"
+                "Invalid deadline format for "
+                f"{tender_id}: {deadline}"
             )
+
+        if deadline_dt <= now_ist:
+
+            expired.append(
+                tender_id
+            )
+
+    print(
+        f"Expired tenders  : {len(expired)}"
+    )
 
     if expired:
 
+        print(
+            "\nExpired tender IDs:"
+        )
+
+        for tender_id in expired[:20]:
+
+            print(
+                f"  {tender_id}"
+            )
+
+        if len(expired) > 20:
+
+            print(
+                f"  ... and "
+                f"{len(expired) - 20} more"
+            )
+
         raise RuntimeError(
-            f"{len(expired)} expired tenders "
-            "were included in the database."
+            "Expired tenders were found "
+            "in the generated database."
+        )
+
+    # ========================================================
+    # Check NULL form_of_contract
+    # ========================================================
+
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM tenders
+        WHERE form_of_contract IS NOT NULL
+        """
+    )
+
+    non_null_contract_type = (
+        cursor.fetchone()[0]
+    )
+
+    if non_null_contract_type:
+
+        raise RuntimeError(
+            "form_of_contract should currently "
+            "be NULL for all tenders."
+        )
+
+    # ========================================================
+    # Check updated_at = scraped_at
+    # ========================================================
+
+    cursor.execute(
+        """
+        SELECT COUNT(*)
+        FROM tenders
+        WHERE updated_at != scraped_at
+        """
+    )
+
+    timestamp_mismatch = (
+        cursor.fetchone()[0]
+    )
+
+    if timestamp_mismatch:
+
+        raise RuntimeError(
+            "updated_at != scraped_at "
+            "for some tenders."
         )
 
     print(
-        "Validation successful."
+        "\nValidation successful."
     )
 
 
 # ============================================================
-# DATABASE BACKUP
+# BACKUP EXISTING DATABASE
 # ============================================================
 
 def backup_existing_database(
     target_path
 ):
-    """
-    Make a backup before replacing tenders.db.
-    """
 
     if not os.path.exists(
         target_path
     ):
+
         print(
-            "No existing tenders.db found. "
-            "No backup required."
+            "\nNo existing tenders.db found."
         )
+
         return None
 
-    timestamp = datetime.now().strftime(
+    timestamp = datetime.now(
+        IST
+    ).strftime(
         "%Y%m%d_%H%M%S"
     )
 
     backup_path = (
-        f"{target_path}.{timestamp}.backup"
+        f"{target_path}."
+        f"{timestamp}.backup"
     )
 
     shutil.copy2(
@@ -1181,7 +1488,10 @@ def backup_existing_database(
     )
 
     print(
-        f"Backup created:\n"
+        "\nExisting database backed up:"
+    )
+
+    print(
         f"  {backup_path}"
     )
 
@@ -1198,7 +1508,7 @@ def replace_database(
 ):
 
     print(
-        "\nReplacing SQLite database..."
+        "\nReplacing tenders.db..."
     )
 
     backup_existing_database(
@@ -1211,7 +1521,10 @@ def replace_database(
     )
 
     print(
-        f"SQLite database updated:\n"
+        "\nDatabase replacement successful:"
+    )
+
+    print(
         f"  {os.path.abspath(target_db)}"
     )
 
@@ -1222,18 +1535,39 @@ def replace_database(
 
 def main():
 
-    start_time = datetime.now()
+    start_time = datetime.now(
+        IST
+    )
 
-    print("=" * 70)
+    print(
+        "=" * 70
+    )
+
     print(
         "TenderLens v1.1 → v1.0 "
         "ACTIVE TENDER SYNCHRONIZATION"
     )
-    print("=" * 70)
 
     print(
-        f"\nTarget database:"
-        f"\n  {os.path.abspath(SQLITE_DB_PATH)}"
+        "=" * 70
+    )
+
+    print(
+        f"\nCurrent IST:"
+    )
+
+    print(
+        start_time.strftime(
+            "%Y-%m-%d %H:%M:%S %Z"
+        )
+    )
+
+    print(
+        "\nTarget database:"
+    )
+
+    print(
+        f"  {os.path.abspath(SQLITE_DB_PATH)}"
     )
 
     pg_conn = None
@@ -1249,7 +1583,7 @@ def main():
         pg_conn = connect_supabase()
 
         # ====================================================
-        # 2. GET ACTIVE TENDERS
+        # 2. FETCH ACTIVE TENDERS
         # ====================================================
 
         tenders = fetch_active_tenders(
@@ -1265,28 +1599,46 @@ def main():
             return
 
         # ====================================================
-        # 3. CREATE SUPABASE ID → PORTAL ID MAP
+        # 3. BUILD SUPABASE ID → PORTAL ID MAP
         # ====================================================
 
         tender_id_map = {}
 
         for tender in tenders:
 
-            tender_id_map[
+            supabase_id = (
                 tender["id"]
-            ] = tender["portal_tender_id"]
+            )
+
+            portal_tender_id = (
+                tender[
+                    "portal_tender_id"
+                ]
+            )
+
+            if not portal_tender_id:
+
+                raise RuntimeError(
+                    f"Supabase tender ID "
+                    f"{supabase_id} has no "
+                    "portal_tender_id."
+                )
+
+            tender_id_map[
+                supabase_id
+            ] = portal_tender_id
 
         supabase_tender_ids = set(
             tender_id_map.keys()
         )
 
         print(
-            f"\nUnique active Supabase tender IDs: "
-            f"{len(supabase_tender_ids)}"
+            "\nUnique active Supabase tender IDs:"
+            f" {len(supabase_tender_ids)}"
         )
 
         # ====================================================
-        # 4. FETCH BOQ
+        # 4. FETCH BOQ HEADINGS
         # ====================================================
 
         boq_headings = fetch_boq_headings(
@@ -1294,13 +1646,17 @@ def main():
             supabase_tender_ids
         )
 
+        # ====================================================
+        # 5. FETCH BOQ ITEMS
+        # ====================================================
+
         boq_items = fetch_boq_items(
             pg_conn,
             supabase_tender_ids
         )
 
         # ====================================================
-        # 5. CREATE TEMPORARY SQLITE DB
+        # 6. CREATE TEMP SQLITE DATABASE
         # ====================================================
 
         temp_file = tempfile.NamedTemporaryFile(
@@ -1313,8 +1669,11 @@ def main():
         temp_file.close()
 
         print(
-            f"\nTemporary SQLite database:"
-            f"\n  {temp_db}"
+            "\nCreating temporary SQLite database:"
+        )
+
+        print(
+            f"  {temp_db}"
         )
 
         sqlite_conn = create_sqlite_database(
@@ -1322,12 +1681,8 @@ def main():
         )
 
         # ====================================================
-        # 6. INSERT TENDERS
+        # 7. INSERT TENDERS
         # ====================================================
-
-        print(
-            "\nWriting tenders..."
-        )
 
         insert_tenders(
             sqlite_conn,
@@ -1335,12 +1690,8 @@ def main():
         )
 
         # ====================================================
-        # 7. INSERT BOQ HEADINGS
+        # 8. INSERT BOQ HEADINGS
         # ====================================================
-
-        print(
-            "Writing BOQ headings..."
-        )
 
         insert_boq_headings(
             sqlite_conn,
@@ -1349,12 +1700,8 @@ def main():
         )
 
         # ====================================================
-        # 8. INSERT BOQ ITEMS
+        # 9. INSERT BOQ ITEMS
         # ====================================================
-
-        print(
-            "Writing BOQ items..."
-        )
 
         insert_boq_items(
             sqlite_conn,
@@ -1363,7 +1710,7 @@ def main():
         )
 
         # ====================================================
-        # 9. CREATE INDEXES
+        # 10. CREATE INDEXES
         # ====================================================
 
         create_indexes(
@@ -1371,13 +1718,17 @@ def main():
         )
 
         # ====================================================
-        # 10. VALIDATE
+        # 11. VALIDATE
         # ====================================================
 
         validate_database(
             sqlite_conn,
             tenders
         )
+
+        # ====================================================
+        # 12. COMMIT
+        # ====================================================
 
         sqlite_conn.commit()
 
@@ -1386,7 +1737,7 @@ def main():
         sqlite_conn = None
 
         # ====================================================
-        # 11. REPLACE PRODUCTION DATABASE
+        # 13. REPLACE PRODUCTION DATABASE
         # ====================================================
 
         replace_database(
@@ -1395,11 +1746,11 @@ def main():
         )
 
         # ====================================================
-        # COMPLETE
+        # DONE
         # ====================================================
 
         elapsed = (
-            datetime.now()
+            datetime.now(IST)
             - start_time
         )
 
@@ -1416,28 +1767,29 @@ def main():
         )
 
         print(
-            f"Tenders      : {len(tenders)}"
+            f"Active tenders : {len(tenders)}"
         )
 
         print(
-            f"BOQ headings : {len(boq_headings)}"
+            f"BOQ headings   : {len(boq_headings)}"
         )
 
         print(
-            f"BOQ items    : {len(boq_items)}"
+            f"BOQ items      : {len(boq_items)}"
         )
 
         print(
-            f"SQLite DB    : {SQLITE_DB_PATH}"
+            f"Database       : "
+            f"{os.path.abspath(SQLITE_DB_PATH)}"
         )
 
         print(
-            f"Elapsed time : {elapsed}"
+            f"Elapsed        : {elapsed}"
         )
 
         print(
-            "\nThe v1.0 database now contains "
-            "only active tenders."
+            "\nAll timestamps in the SQLite database "
+            "are stored in IST."
         )
 
     except Exception as e:
@@ -1463,9 +1815,11 @@ def main():
     finally:
 
         if sqlite_conn is not None:
+
             sqlite_conn.close()
 
         if pg_conn is not None:
+
             pg_conn.close()
 
         if temp_db and os.path.exists(
@@ -1473,10 +1827,13 @@ def main():
         ):
 
             try:
+
                 os.remove(
                     temp_db
                 )
+
             except OSError:
+
                 pass
 
 
@@ -1485,4 +1842,5 @@ def main():
 # ============================================================
 
 if __name__ == "__main__":
+
     main()
