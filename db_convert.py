@@ -54,6 +54,7 @@ Optional .env file is supported.
 import os
 import sqlite3
 import shutil
+import sys
 import tempfile
 
 from datetime import datetime
@@ -1791,6 +1792,39 @@ def main():
             "\nAll timestamps in the SQLite database "
             "are stored in IST."
         )
+
+        # --------------------------------------------------------
+        # 14. RUN TENDER ALERT AFTER SUCCESSFUL DATABASE SYNC
+        # --------------------------------------------------------
+
+        import subprocess
+
+        alert_script = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "tender_alert.py"
+        )
+
+        if not os.path.exists(alert_script):
+            raise FileNotFoundError(
+                f"Tender alert script not found: {alert_script}"
+            )
+
+        print("\n" + "=" * 70)
+        print("RUNNING TENDER ALERT")
+        print("=" * 70)
+
+        alert_result = subprocess.run(
+            [sys.executable, alert_script],
+            check=False
+        )
+
+        if alert_result.returncode != 0:
+            raise RuntimeError(
+                "Tender alert process failed with "
+                f"exit code {alert_result.returncode}."
+            )
+
+        print("\nTender alert completed successfully.")
 
     except Exception as e:
 
