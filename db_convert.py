@@ -1826,6 +1826,48 @@ def main():
 
         print("\nTender alert completed successfully.")
 
+        # --------------------------------------------------------
+        # 15. COMMIT AND PUSH UPDATED DATABASE TO GIT
+        # --------------------------------------------------------
+
+        print("\n" + "=" * 70)
+        print("UPDATING GIT REPOSITORY")
+        print("=" * 70)
+
+        repo_dir = os.path.dirname(
+            os.path.abspath(__file__)
+        )
+
+        git_commands = [
+            ["git", "add", "."],
+            ["git", "commit", "-m", "db_updation"],
+            ["git", "push"],
+        ]
+
+        for command in git_commands:
+
+            print(
+                "\nRunning: "
+                + " ".join(command)
+            )
+
+            result = subprocess.run(
+                command,
+                cwd=repo_dir,
+                check=False,
+                text=True
+            )
+
+            if result.returncode != 0:
+
+                raise RuntimeError(
+                    "Git command failed: "
+                    + " ".join(command)
+                    + f" (exit code {result.returncode})"
+                )
+
+        print("\nGit update completed successfully.")
+
     except Exception as e:
 
         print(
